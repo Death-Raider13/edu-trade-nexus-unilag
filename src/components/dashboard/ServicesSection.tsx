@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Plus, Service, Edit } from 'lucide-react';
+import { Loader2, Plus, Settings, Edit } from 'lucide-react';
 
 interface Service {
   id: string;
@@ -138,7 +138,7 @@ export const ServicesSection = () => {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Service className="h-5 w-5" />
+              <Settings className="h-5 w-5" />
               <span>My Services</span>
             </div>
             <Button onClick={() => setShowForm(true)}>

@@ -3,106 +3,104 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, MessageSquare, Send } from 'lucide-react';
+import { Loader2, MessageSquare, Send, User } from 'lucide-react';
 
 interface Message {
   id: string;
+  content: string;
   sender_id: string;
   receiver_id: string;
-  content: string;
   created_at: string;
-  profiles: {
-    full_name: string;
-    email: string;
-  };
+  read_at: string | null;
+  sender_name?: string;
+  receiver_name?: string;
 }
 
-interface Conversation {
-  user_id: string;
+interface Contact {
+  id: string;
   full_name: string;
   email: string;
-  last_message: string;
-  last_message_time: string;
+  last_message?: string;
+  last_message_time?: string;
 }
 
 export const MessagesSection = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      fetchConversations();
-      subscribeToMessages();
+      fetchContacts();
+      setupRealtimeSubscription();
     }
   }, [user]);
 
-  const fetchConversations = async () => {
+  useEffect(() => {
+    if (selectedContact) {
+      fetchMessages(selectedContact.id);
+    }
+  }, [selectedContact]);
+
+  const fetchContacts = async () => {
     try {
-      const { data, error } = await supabase
+      // Get all unique contacts from messages
+      const { data: messageData, error: messageError } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:profiles!messages_sender_id_fkey(full_name, email),
-          receiver:profiles!messages_receiver_id_fkey(full_name, email)
-        `)
+        .select('sender_id, receiver_id')
         .or(`sender_id.eq.${user?.id},receiver_id.eq.${user?.id}`)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (messageError) throw messageError;
 
-      // Group messages by conversation
-      const conversationMap = new Map<string, Conversation>();
-      
-      data.forEach((message: any) => {
-        const otherUserId = message.sender_id === user?.id ? message.receiver_id : message.sender_id;
-        const otherUser = message.sender_id === user?.id ? message.receiver : message.sender;
-        
-        if (!conversationMap.has(otherUserId)) {
-          conversationMap.set(otherUserId, {
-            user_id: otherUserId,
-            full_name: otherUser.full_name || otherUser.email,
-            email: otherUser.email,
-            last_message: message.content,
-            last_message_time: message.created_at,
-          });
-        }
+      // Extract unique contact IDs
+      const contactIds = new Set<string>();
+      messageData?.forEach(msg => {
+        if (msg.sender_id !== user?.id) contactIds.add(msg.sender_id);
+        if (msg.receiver_id !== user?.id) contactIds.add(msg.receiver_id);
       });
 
-      setConversations(Array.from(conversationMap.values()));
+      if (contactIds.size > 0) {
+        // Fetch contact profiles
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', Array.from(contactIds));
+
+        if (profileError) throw profileError;
+        setContacts(profileData || []);
+      }
     } catch (error) {
-      console.error('Error fetching conversations:', error);
+      console.error('Error fetching contacts:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMessages = async (otherUserId: string) => {
+  const fetchMessages = async (contactId: string) => {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select(`
-          *,
-          profiles!messages_sender_id_fkey(full_name, email)
-        `)
-        .or(`and(sender_id.eq.${user?.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user?.id})`)
+        .select('*')
+        .or(`and(sender_id.eq.${user?.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${user?.id})`)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data);
+      setMessages(data || []);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
   };
 
-  const subscribeToMessages = () => {
+  const setupRealtimeSubscription = () => {
     const channel = supabase
       .channel('messages')
       .on('postgres_changes', 
@@ -113,10 +111,8 @@ export const MessagesSection = () => {
           filter: `receiver_id=eq.${user?.id}`
         },
         (payload) => {
-          fetchConversations();
-          if (selectedConversation) {
-            fetchMessages(selectedConversation);
-          }
+          const newMessage = payload.new as Message;
+          setMessages(prev => [...prev, newMessage]);
         }
       )
       .subscribe();
@@ -126,23 +122,22 @@ export const MessagesSection = () => {
     };
   };
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation) return;
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedContact) return;
 
     try {
       const { error } = await supabase
         .from('messages')
         .insert({
           sender_id: user?.id,
-          receiver_id: selectedConversation,
+          receiver_id: selectedContact.id,
           content: newMessage.trim(),
         });
 
       if (error) throw error;
 
       setNewMessage('');
-      fetchMessages(selectedConversation);
+      fetchMessages(selectedContact.id);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -165,37 +160,50 @@ export const MessagesSection = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
-      {/* Conversations List */}
+      {/* Contacts List */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <MessageSquare className="h-5 w-5" />
-            <span>Conversations</span>
+            <span>Contacts</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="max-h-[500px] overflow-y-auto">
-            {conversations.map((conversation) => (
-              <div
-                key={conversation.user_id}
-                className={`p-4 border-b cursor-pointer hover:bg-muted/50 ${
-                  selectedConversation === conversation.user_id ? 'bg-muted' : ''
-                }`}
-                onClick={() => {
-                  setSelectedConversation(conversation.user_id);
-                  fetchMessages(conversation.user_id);
-                }}
-              >
-                <div className="font-medium">{conversation.full_name}</div>
-                <div className="text-sm text-muted-foreground truncate">
-                  {conversation.last_message}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {new Date(conversation.last_message_time).toLocaleTimeString()}
-                </div>
+          <ScrollArea className="h-[500px]">
+            {contacts.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground">
+                No conversations yet
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="space-y-2 p-2">
+                {contacts.map((contact) => (
+                  <div
+                    key={contact.id}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedContact?.id === contact.id
+                        ? 'bg-primary/10'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setSelectedContact(contact)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">
+                          {contact.full_name || contact.email}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {contact.email}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </CardContent>
       </Card>
 
@@ -203,57 +211,57 @@ export const MessagesSection = () => {
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle>
-            {selectedConversation
-              ? conversations.find(c => c.user_id === selectedConversation)?.full_name
-              : 'Select a conversation'}
+            {selectedContact ? `Chat with ${selectedContact.full_name || selectedContact.email}` : 'Select a contact'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {selectedConversation ? (
+          {selectedContact ? (
             <div className="flex flex-col h-[500px]">
-              {/* Messages List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
+              {/* Messages Area */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  {messages.map((message) => (
                     <div
-                      className={`max-w-[70%] p-3 rounded-lg ${
-                        message.sender_id === user?.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
+                      key={message.id}
+                      className={`flex ${
+                        message.sender_id === user?.id ? 'justify-end' : 'justify-start'
                       }`}
                     >
-                      <div>{message.content}</div>
-                      <div className="text-xs opacity-70 mt-1">
-                        {new Date(message.created_at).toLocaleTimeString()}
+                      <div
+                        className={`max-w-[70%] p-3 rounded-lg ${
+                          message.sender_id === user?.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(message.created_at).toLocaleTimeString()}
+                        </p>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </ScrollArea>
 
               {/* Message Input */}
-              <div className="border-t p-4">
-                <form onSubmit={sendMessage} className="flex space-x-2">
+              <div className="p-4 border-t">
+                <div className="flex space-x-2">
                   <Input
+                    placeholder="Type a message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1"
+                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                   />
-                  <Button type="submit" size="icon">
+                  <Button onClick={sendMessage}>
                     <Send className="h-4 w-4" />
                   </Button>
-                </form>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-[500px] text-muted-foreground">
-              Select a conversation to start messaging
+            <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+              Select a contact to start messaging
             </div>
           )}
         </CardContent>
