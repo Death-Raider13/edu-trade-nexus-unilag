@@ -36,7 +36,7 @@ export const AuthForm = () => {
         setError(error.message);
       } else {
         setError('');
-        // User can now access all features immediately
+        alert('Check your email for the confirmation link!');
       }
     } else {
       const { error } = await signIn(formData.email, formData.password);
