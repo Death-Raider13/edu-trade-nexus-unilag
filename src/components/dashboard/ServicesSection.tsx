@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Plus, Settings, Edit } from 'lucide-react';
+import { Loader2, Plus, Settings, Edit, Star, Clock, CreditCard, User } from 'lucide-react';
 
 interface Service {
   id: string;
@@ -20,23 +20,75 @@ interface Service {
   duration: string;
   requirements: string;
   status: string;
+  agent_id: string;
+  agents?: {
+    user_id: string;
+    cgpa: number;
+    verification_status: string;
+    profiles?: {
+      full_name: string;
+    };
+  };
 }
 
 export const ServicesSection = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [services, setServices] = useState<Service[]>([]);
+  const [allServices, setAllServices] = useState<Service[]>([]);
+  const [myServices, setMyServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [activeTab, setActiveTab] = useState<'browse' | 'my-services'>('browse');
+  const [isAgent, setIsAgent] = useState(false);
 
   useEffect(() => {
     if (user) {
-      fetchServices();
+      checkAgentStatus();
+      fetchAllServices();
+      fetchMyServices();
     }
   }, [user]);
 
-  const fetchServices = async () => {
+  const checkAgentStatus = async () => {
+    try {
+      const { data } = await supabase
+        .from('agents')
+        .select('id, verification_status')
+        .eq('user_id', user?.id)
+        .single();
+      
+      setIsAgent(!!data && data.verification_status === 'approved');
+    } catch (error) {
+      setIsAgent(false);
+    }
+  };
+
+  const fetchAllServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select(`
+          *,
+          agents!inner(
+            user_id,
+            cgpa,
+            verification_status,
+            profiles!inner(full_name)
+          )
+        `)
+        .eq('status', 'active')
+        .eq('agents.verification_status', 'approved')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAllServices(data || []);
+    } catch (error) {
+      console.error('Error fetching all services:', error);
+    }
+  };
+
+  const fetchMyServices = async () => {
     try {
       const { data: agent } = await supabase
         .from('agents')
@@ -52,10 +104,10 @@ export const ServicesSection = () => {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setServices(data);
+        setMyServices(data || []);
       }
     } catch (error) {
-      console.error('Error fetching services:', error);
+      console.error('Error fetching my services:', error);
     } finally {
       setLoading(false);
     }
@@ -111,7 +163,8 @@ export const ServicesSection = () => {
 
       setShowForm(false);
       setEditingService(null);
-      fetchServices();
+      fetchMyServices();
+      fetchAllServices();
     } catch (error) {
       console.error('Error saving service:', error);
       toast({
@@ -120,6 +173,13 @@ export const ServicesSection = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleHireAgent = (service: Service) => {
+    toast({
+      title: 'Hire Agent',
+      description: 'Booking feature coming soon! Contact the agent directly for now.',
+    });
   };
 
   if (loading) {
@@ -134,60 +194,172 @@ export const ServicesSection = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Settings className="h-5 w-5" />
-              <span>My Services</span>
-            </div>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Service
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {services.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No services yet. Create your first service to start helping students!
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {services.map((service) => (
-                <Card key={service.id} className="border-primary/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">{service.title}</h3>
-                      <Badge variant="outline">{service.category}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {service.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-primary font-semibold">
-                        {service.price} credits
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingService(service);
-                          setShowForm(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Tab Navigation */}
+      <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
+        <Button
+          variant={activeTab === 'browse' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('browse')}
+        >
+          Browse Services
+        </Button>
+        {isAgent && (
+          <Button
+            variant={activeTab === 'my-services' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('my-services')}
+          >
+            My Services
+          </Button>
+        )}
+      </div>
 
-      {showForm && (
+      {/* Browse Services Tab */}
+      {activeTab === 'browse' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Settings className="h-5 w-5" />
+              <span>Available Services</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {allServices.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No services available yet.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {allServices.map((service) => (
+                  <Card key={service.id} className="hover:shadow-lg transition-all duration-300">
+                    <CardHeader className="pb-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <Badge variant="secondary" className="mb-2">
+                          {service.category}
+                        </Badge>
+                        <Badge className="bg-primary">
+                          Verified Agent
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-lg leading-tight">{service.title}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{service.description}</p>
+                    </CardHeader>
+
+                    <CardContent className="space-y-4">
+                      {/* Agent Info */}
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{service.agents?.profiles?.full_name || 'Anonymous'}</div>
+                          <div className="text-sm text-muted-foreground">CGPA: {service.agents?.cgpa}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-4 w-4 fill-warning text-warning" />
+                            <span className="font-medium">4.8</span>
+                            <span className="text-sm text-muted-foreground">(127)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Service Details */}
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span>{service.duration}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <CreditCard className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-primary">
+                            {service.price} credits
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Requirements */}
+                      {service.requirements && (
+                        <div className="text-sm">
+                          <span className="font-medium">Requirements: </span>
+                          <span className="text-muted-foreground">{service.requirements}</span>
+                        </div>
+                      )}
+
+                      {/* Action Button */}
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleHireAgent(service)}
+                      >
+                        Hire Agent
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* My Services Tab - Only shown for agents */}
+      {activeTab === 'my-services' && isAgent && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Settings className="h-5 w-5" />
+                <span>My Services</span>
+              </div>
+              <Button onClick={() => setShowForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Service
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {myServices.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No services yet. Create your first service to start helping students!
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {myServices.map((service) => (
+                  <Card key={service.id} className="border-primary/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold">{service.title}</h3>
+                        <Badge variant="outline">{service.category}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {service.description}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-primary font-semibold">
+                          {service.price} credits
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingService(service);
+                            setShowForm(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Service Form - Only shown for agents */}
+      {showForm && isAgent && (
         <Card>
           <CardHeader>
             <CardTitle>

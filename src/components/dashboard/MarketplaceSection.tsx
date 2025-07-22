@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Plus, ShoppingBag, Edit } from 'lucide-react';
+import { Loader2, Plus, ShoppingBag, Edit, MessageSquare, Heart, MapPin, Star } from 'lucide-react';
 
 interface MarketplaceItem {
   id: string;
@@ -20,23 +20,49 @@ interface MarketplaceItem {
   category: string;
   location: string;
   status: string;
+  seller_id: string;
+  images?: string[];
+  profiles?: {
+    full_name: string;
+  };
 }
 
 export const MarketplaceSection = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [items, setItems] = useState<MarketplaceItem[]>([]);
+  const [allItems, setAllItems] = useState<MarketplaceItem[]>([]);
+  const [myItems, setMyItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MarketplaceItem | null>(null);
+  const [activeTab, setActiveTab] = useState<'browse' | 'my-listings'>('browse');
 
   useEffect(() => {
     if (user) {
-      fetchItems();
+      fetchAllItems();
+      fetchMyItems();
     }
   }, [user]);
 
-  const fetchItems = async () => {
+  const fetchAllItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('marketplace_items')
+        .select(`
+          *,
+          profiles!inner(full_name)
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAllItems(data || []);
+    } catch (error) {
+      console.error('Error fetching all items:', error);
+    }
+  };
+
+  const fetchMyItems = async () => {
     try {
       const { data, error } = await supabase
         .from('marketplace_items')
@@ -45,9 +71,9 @@ export const MarketplaceSection = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setItems(data);
+      setMyItems(data || []);
     } catch (error) {
-      console.error('Error fetching items:', error);
+      console.error('Error fetching my items:', error);
     } finally {
       setLoading(false);
     }
@@ -88,7 +114,8 @@ export const MarketplaceSection = () => {
 
       setShowForm(false);
       setEditingItem(null);
-      fetchItems();
+      fetchMyItems();
+      fetchAllItems();
     } catch (error) {
       console.error('Error saving item:', error);
       toast({
@@ -97,6 +124,21 @@ export const MarketplaceSection = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleContactSeller = (item: MarketplaceItem) => {
+    toast({
+      title: 'Contact Seller',
+      description: `Messaging feature coming soon! For now, contact the seller directly.`,
+    });
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+    }).format(price / 100);
   };
 
   if (loading) {
@@ -111,59 +153,148 @@ export const MarketplaceSection = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <ShoppingBag className="h-5 w-5" />
-              <span>My Listings</span>
-            </div>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              List Item
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {items.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No items listed yet. Start selling to earn money!
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {items.map((item) => (
-                <Card key={item.id} className="border-primary/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">{item.title}</h3>
-                      <Badge variant="outline">{item.status}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {item.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-primary font-semibold">
-                        ₦{(item.price / 100).toLocaleString()}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingItem(item);
-                          setShowForm(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Tab Navigation */}
+      <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
+        <Button
+          variant={activeTab === 'browse' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('browse')}
+        >
+          Browse Marketplace
+        </Button>
+        <Button
+          variant={activeTab === 'my-listings' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('my-listings')}
+        >
+          My Listings
+        </Button>
+      </div>
 
+      {/* Browse Marketplace Tab */}
+      {activeTab === 'browse' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <ShoppingBag className="h-5 w-5" />
+              <span>Browse Marketplace</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {allItems.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No items available in the marketplace yet.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {allItems.map((item) => (
+                  <Card key={item.id} className="overflow-hidden">
+                    <div className="aspect-square bg-muted/50 flex items-center justify-center">
+                      <div className="text-muted-foreground text-sm">Product Image</div>
+                    </div>
+                    <CardContent className="p-4">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between">
+                          <h3 className="font-semibold text-sm line-clamp-2">{item.title}</h3>
+                          <Badge variant="outline" className="text-xs">{item.condition}</Badge>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {item.description}
+                        </p>
+                        
+                        <div className="text-lg font-bold text-primary">
+                          {formatPrice(item.price)}
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{item.profiles?.full_name || 'Anonymous'}</span>
+                          <div className="flex items-center space-x-1">
+                            <MapPin className="h-3 w-3" />
+                            <span>{item.location}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => handleContactSeller(item)}
+                          >
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            Contact
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Heart className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* My Listings Tab */}
+      {activeTab === 'my-listings' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ShoppingBag className="h-5 w-5" />
+                <span>My Listings</span>
+              </div>
+              <Button onClick={() => setShowForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                List Item
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {myItems.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No items listed yet. Start selling to earn money!
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {myItems.map((item) => (
+                  <Card key={item.id} className="border-primary/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold">{item.title}</h3>
+                        <Badge variant="outline">{item.status}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {item.description}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-primary font-semibold">
+                          {formatPrice(item.price)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingItem(item);
+                            setShowForm(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* List Item Form */}
       {showForm && (
         <Card>
           <CardHeader>
