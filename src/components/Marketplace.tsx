@@ -1,7 +1,8 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, MapPin, DollarSign, Star } from "lucide-react";
+import { Heart, MapPin, Star, ShoppingBag, TrendingUp, Shield, Verified } from "lucide-react";
 
 const Marketplace = () => {
   const products = [
@@ -15,8 +16,10 @@ const Marketplace = () => {
       location: "Akoka Campus",
       image: "/placeholder.svg",
       category: "Electronics",
-      description: "Scientific calculator in excellent condition, barely used",
+      description: "Scientific calculator in excellent condition, barely used for one semester",
       commission: 2500,
+      views: 234,
+      isVerified: true,
     },
     {
       id: 2,
@@ -28,8 +31,10 @@ const Marketplace = () => {
       location: "Yaba Campus",
       image: "/placeholder.svg",
       category: "Books",
-      description: "Complete set of CS textbooks for 200-400 level courses",
+      description: "Complete set of CS textbooks for 200-400 level courses with notes",
       commission: 4500,
+      views: 156,
+      isVerified: true,
     },
     {
       id: 3,
@@ -41,8 +46,10 @@ const Marketplace = () => {
       location: "Akoka Campus",
       image: "/placeholder.svg",
       category: "Electronics",
-      description: "8GB RAM, 256GB SSD, perfect for students",
+      description: "8GB RAM, 256GB SSD, perfect for students. Comes with charger and case",
       commission: 85000,
+      views: 432,
+      isVerified: true,
     },
     {
       id: 4,
@@ -54,8 +61,10 @@ const Marketplace = () => {
       location: "Medical Campus",
       image: "/placeholder.svg",
       category: "Equipment",
-      description: "Complete lab equipment for medical students",
+      description: "Complete lab equipment for medical students, unopened packaging",
       commission: 3500,
+      views: 98,
+      isVerified: false,
     },
   ];
 
@@ -68,36 +77,58 @@ const Marketplace = () => {
   };
 
   return (
-    <section className="py-20 bg-background">
+    <section className="py-24 bg-background">
       <div className="container">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Student Marketplace</h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Buy and sell with fellow UNILAG students. All transactions include 10% platform commission.
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center space-x-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
+            <ShoppingBag className="h-4 w-4" />
+            <span>Trusted Student Marketplace</span>
+          </div>
+          <h2 className="text-4xl lg:text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Student Marketplace
+          </h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Buy and sell with fellow UNILAG students safely. All transactions include buyer protection and 10% platform fee.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
           {products.map((product) => (
-            <Card key={product.id} className="group hover:shadow-xl transition-all duration-300 overflow-hidden">
-              <div className="relative">
-                <div className="aspect-square bg-muted/50 flex items-center justify-center">
-                  <div className="text-muted-foreground text-sm">Product Image</div>
+            <Card key={product.id} className="group hover:shadow-2xl transition-all duration-500 overflow-hidden border-0 shadow-lg bg-gradient-to-b from-background to-background/50">
+              <div className="relative overflow-hidden">
+                <div className="aspect-square bg-gradient-to-br from-muted/30 to-muted/60 flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
+                  <ShoppingBag className="h-12 w-12 text-muted-foreground/50" />
                 </div>
+                
+                {/* Badges */}
+                <Badge className="absolute top-3 left-3 bg-primary/90 backdrop-blur-sm border-0 shadow-lg">
+                  {product.category}
+                </Badge>
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="absolute top-2 right-2 bg-background/80 hover:bg-background"
+                  className="absolute top-3 right-3 bg-background/90 backdrop-blur-sm hover:bg-background shadow-lg border-0"
                 >
                   <Heart className="h-4 w-4" />
                 </Button>
-                <Badge className="absolute top-2 left-2 bg-primary">
-                  {product.category}
-                </Badge>
+                
+                {/* Condition & Views */}
+                <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                  <Badge 
+                    variant="outline" 
+                    className="bg-background/95 backdrop-blur-sm border-primary/20 text-xs"
+                  >
+                    {product.condition}
+                  </Badge>
+                  <div className="flex items-center space-x-1 text-xs text-white bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
+                    <TrendingUp className="h-3 w-3" />
+                    <span>{product.views} views</span>
+                  </div>
+                </div>
               </div>
 
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base leading-tight line-clamp-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors duration-300">
                   {product.title}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground line-clamp-2">
@@ -105,29 +136,29 @@ const Marketplace = () => {
                 </p>
               </CardHeader>
 
-              <CardContent className="space-y-3">
-                {/* Price */}
-                <div className="space-y-1">
+              <CardContent className="space-y-4">
+                {/* Price Section */}
+                <div className="space-y-2">
                   <div className="text-2xl font-bold text-primary">
                     {formatPrice(product.price)}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Commission: {formatPrice(product.commission)}
+                  <div className="text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
+                    Platform fee: {formatPrice(product.commission)}
                   </div>
                 </div>
 
-                {/* Condition */}
-                <Badge variant="outline" className="w-fit">
-                  {product.condition}
-                </Badge>
-
                 {/* Seller Info */}
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-3 w-3 fill-warning text-warning" />
-                    <span className="font-medium">{product.rating}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-3 w-3 fill-warning text-warning" />
+                      <span className="font-medium text-sm">{product.rating}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                      {product.isVerified && <Verified className="h-3 w-3 text-primary" />}
+                      <span className="font-medium">{product.seller}</span>
+                    </div>
                   </div>
-                  <div className="text-muted-foreground">{product.seller}</div>
                 </div>
 
                 {/* Location */}
@@ -138,7 +169,8 @@ const Marketplace = () => {
 
                 {/* Action Buttons */}
                 <div className="space-y-2 pt-2">
-                  <Button className="w-full" size="sm">
+                  <Button className="w-full shadow-md group-hover:shadow-lg transition-all duration-300" size="sm">
+                    <ShoppingBag className="h-4 w-4 mr-2" />
                     Buy Now
                   </Button>
                   <Button variant="outline" size="sm" className="w-full">
@@ -150,10 +182,21 @@ const Marketplace = () => {
           ))}
         </div>
 
-        <div className="text-center mt-12">
-          <Button variant="outline" size="lg">
-            View All Products
-          </Button>
+        {/* Call to Action */}
+        <div className="text-center">
+          <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-8 rounded-2xl border border-primary/20 max-w-2xl mx-auto">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <Shield className="h-6 w-6 text-primary" />
+              <h3 className="text-2xl font-bold">Safe & Secure Shopping</h3>
+            </div>
+            <p className="text-muted-foreground mb-6">
+              Shop with confidence knowing all sellers are verified UNILAG students with buyer protection included
+            </p>
+            <Button size="lg" className="shadow-lg">
+              <ShoppingBag className="h-5 w-5 mr-2" />
+              View All Products
+            </Button>
+          </div>
         </div>
       </div>
     </section>
