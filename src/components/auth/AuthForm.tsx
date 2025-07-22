@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Mail, Lock, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export const AuthForm = () => {
   const { signIn, signUp } = useAuth();
@@ -31,12 +32,26 @@ export const AuthForm = () => {
         setLoading(false);
         return;
       }
+      
       const { error } = await signUp(formData.email, formData.password, formData.fullName);
       if (error) {
         setError(error.message);
       } else {
-        setError('');
-        alert('Check your email for the confirmation link!');
+        // Send custom welcome email
+        try {
+          const confirmationUrl = `${window.location.origin}/auth/confirm?token=placeholder`;
+          await supabase.functions.invoke('send-welcome-email', {
+            body: {
+              email: formData.email,
+              confirmationUrl: confirmationUrl,
+            },
+          });
+          setError('');
+          alert('WELCOME TO WHAT DO U WANNA DO! Check your email for the confirmation link.');
+        } catch (emailError) {
+          console.error('Error sending welcome email:', emailError);
+          alert('Account created! Check your email for the confirmation link.');
+        }
       }
     } else {
       const { error } = await signIn(formData.email, formData.password);
