@@ -4,19 +4,29 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, MessageSquare, ShoppingBag, Users, LogOut } from 'lucide-react';
+import { CreditCard, MessageSquare, ShoppingBag, Users, LogOut, UserCheck } from 'lucide-react';
 import { ProfileSection } from './ProfileSection';
 import { AgentSection } from './AgentSection';
 import { ServicesSection } from './ServicesSection';
 import { MarketplaceSection } from './MarketplaceSection';
 import { MessagesSection } from './MessagesSection';
-import { CreditsSection } from './CreditsSection';
+import { EnhancedAgentSection } from './EnhancedAgentSection';
+import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleCreditsClick = () => {
+    navigate('/credits-billing');
+  };
+
+  const handleProfileClick = () => {
+    navigate('/profile-settings');
   };
 
   return (
@@ -29,6 +39,14 @@ export const Dashboard = () => {
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm text-muted-foreground">Welcome, {user?.email}</span>
+            <Button onClick={handleCreditsClick} variant="outline" size="sm">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Credits & Billing
+            </Button>
+            <Button onClick={handleProfileClick} variant="outline" size="sm">
+              <UserCheck className="h-4 w-4 mr-2" />
+              Profile Settings
+            </Button>
             <Button onClick={handleSignOut} variant="outline" size="sm">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -41,19 +59,15 @@ export const Dashboard = () => {
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="credits">Credits</TabsTrigger>
             <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
-            <TabsTrigger value="agent">Agent</TabsTrigger>
+            <TabsTrigger value="agent">Become Agent</TabsTrigger>
+            <TabsTrigger value="hire-agent">Hire Agent</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
             <ProfileSection />
-          </TabsContent>
-
-          <TabsContent value="credits">
-            <CreditsSection />
           </TabsContent>
 
           <TabsContent value="services">
@@ -70,6 +84,10 @@ export const Dashboard = () => {
 
           <TabsContent value="agent">
             <AgentSection />
+          </TabsContent>
+
+          <TabsContent value="hire-agent">
+            <EnhancedAgentSection />
           </TabsContent>
         </Tabs>
       </main>

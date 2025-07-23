@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Plus, ShoppingBag, Edit, MessageSquare, Heart, MapPin, Star, Filter, Search } from 'lucide-react';
+import { Loader2, Plus, ShoppingBag, Edit, MessageSquare, Heart, MapPin, Star, Filter, Search, Upload, FileText, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface MarketplaceItem {
   id: string;
@@ -24,6 +25,7 @@ interface MarketplaceItem {
   seller_id: string;
   images?: string[];
   seller_name?: string;
+  issues?: string;
 }
 
 export const MarketplaceSection = () => {
@@ -33,11 +35,14 @@ export const MarketplaceSection = () => {
   const [myItems, setMyItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [editingItem, setEditingItem] = useState<MarketplaceItem | null>(null);
   const [activeTab, setActiveTab] = useState<'browse' | 'my-listings'>('browse');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [conditionFilter, setConditionFilter] = useState<string>('all');
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -48,7 +53,6 @@ export const MarketplaceSection = () => {
 
   const fetchAllItems = async () => {
     try {
-      // First get marketplace items
       const { data: items, error: itemError } = await supabase
         .from('marketplace_items')
         .select('*')
@@ -57,7 +61,6 @@ export const MarketplaceSection = () => {
 
       if (itemError) throw itemError;
 
-      // Then get seller names from profiles
       const itemsWithSellers: MarketplaceItem[] = [];
       
       for (const item of items || []) {
@@ -101,8 +104,35 @@ export const MarketplaceSection = () => {
     }
   };
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length + selectedImages.length > 5) {
+      toast({
+        title: 'Error',
+        description: 'Maximum 5 images allowed',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSelectedImages(prev => [...prev, ...files]);
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!acceptedTerms) {
+      toast({
+        title: 'Error',
+        description: 'Please accept the terms and conditions',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
 
     const itemData = {
@@ -113,6 +143,8 @@ export const MarketplaceSection = () => {
       condition: formData.get('condition') as string,
       category: formData.get('category') as string,
       location: formData.get('location') as string,
+      issues: formData.get('issues') as string,
+      status: 'pending', // Items need admin approval
     };
 
     try {
@@ -131,11 +163,13 @@ export const MarketplaceSection = () => {
 
       toast({
         title: 'Success',
-        description: `Item ${editingItem ? 'updated' : 'listed'} successfully`,
+        description: `Item ${editingItem ? 'updated' : 'submitted for approval'} successfully`,
       });
 
       setShowForm(false);
       setEditingItem(null);
+      setSelectedImages([]);
+      setAcceptedTerms(false);
       fetchMyItems();
       fetchAllItems();
     } catch (error) {
@@ -148,20 +182,66 @@ export const MarketplaceSection = () => {
     }
   };
 
-  const handleContactSeller = (item: MarketplaceItem) => {
-    toast({
-      title: 'Contact Seller',
-      description: `Connect with ${item.seller_name} to discuss this item.`,
-    });
-  };
+  const TermsAndConditions = () => (
+    <div className="space-y-4 max-h-96 overflow-y-auto">
+      <div className="flex items-center space-x-2 text-primary">
+        <FileText className="h-5 w-5" />
+        <h3 className="text-lg font-semibold">Terms and Conditions</h3>
+      </div>
+      
+      <div className="space-y-3 text-sm">
+        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-start space-x-2">
+            <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-yellow-800">Commission Policy</p>
+              <p className="text-yellow-700">WHAT DO YOU WANNA DO charges a 10% commission on all successful transactions.</p>
+            </div>
+          </div>
+        </div>
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-    }).format(price / 100);
-  };
+        <div className="space-y-2">
+          <h4 className="font-medium">Product Quality Requirements:</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Product descriptions must be accurate and detailed</li>
+            <li>All known defects or issues must be disclosed</li>
+            <li>Images must accurately represent the product condition</li>
+            <li>Misrepresentation of product quality is strictly prohibited</li>
+          </ul>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="font-medium">Strike System:</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>First complaint from buyer results in a warning strike</li>
+            <li>Second complaint results in account suspension</li>
+            <li>Third complaint results in permanent ban from the platform</li>
+            <li>False or misleading listings will result in immediate strikes</li>
+          </ul>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="font-medium">Return Policy:</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>If product quality doesn't match description, full refund to buyer</li>
+            <li>Seller is responsible for return shipping costs</li>
+            <li>Refund processing takes 3-5 business days</li>
+            <li>Disputes are handled by our admin team</li>
+          </ul>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="font-medium">General Terms:</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>All listings subject to admin approval</li>
+            <li>Prohibited items will be removed without notice</li>
+            <li>Sellers must respond to buyer inquiries within 24 hours</li>
+            <li>Platform reserves the right to modify terms at any time</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
 
   const filteredItems = allItems.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -171,6 +251,21 @@ export const MarketplaceSection = () => {
     
     return matchesSearch && matchesCategory && matchesCondition;
   });
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+    }).format(price / 100);
+  };
+
+  const handleContactSeller = (item: MarketplaceItem) => {
+    toast({
+      title: 'Contact Seller',
+      description: `Connect with ${item.seller_name} to discuss this item.`,
+    });
+  };
 
   if (loading) {
     return (
@@ -379,10 +474,49 @@ export const MarketplaceSection = () => {
                   {myItems.length} items
                 </Badge>
               </CardTitle>
-              <Button onClick={() => setShowForm(true)} className="shadow-md">
-                <Plus className="h-4 w-4 mr-2" />
-                List New Item
-              </Button>
+              <Dialog open={showTerms} onOpenChange={setShowTerms}>
+                <DialogTrigger asChild>
+                  <Button className="shadow-md">
+                    <Plus className="h-4 w-4 mr-2" />
+                    List New Item
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Terms and Conditions</DialogTitle>
+                  </DialogHeader>
+                  <TermsAndConditions />
+                  <div className="flex items-center space-x-2 mt-4">
+                    <Checkbox
+                      id="accept-terms"
+                      checked={acceptedTerms}
+                      onCheckedChange={setAcceptedTerms}
+                    />
+                    <label htmlFor="accept-terms" className="text-sm font-medium">
+                      I agree to the terms and conditions
+                    </label>
+                  </div>
+                  <div className="flex justify-end space-x-4 mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowTerms(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (acceptedTerms) {
+                          setShowTerms(false);
+                          setShowForm(true);
+                        }
+                      }}
+                      disabled={!acceptedTerms}
+                    >
+                      Continue
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardHeader>
           
@@ -396,7 +530,7 @@ export const MarketplaceSection = () => {
                 <p className="text-muted-foreground mb-4">
                   Start selling to earn money from items you no longer need!
                 </p>
-                <Button onClick={() => setShowForm(true)}>
+                <Button onClick={() => setShowTerms(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   List Your First Item
                 </Button>
@@ -414,7 +548,7 @@ export const MarketplaceSection = () => {
                           </p>
                         </div>
                         <Badge 
-                          variant={item.status === 'active' ? 'default' : 'secondary'}
+                          variant={item.status === 'active' ? 'default' : item.status === 'pending' ? 'secondary' : 'destructive'}
                           className="ml-2"
                         >
                           {item.status}
@@ -505,6 +639,72 @@ export const MarketplaceSection = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="issues" className="text-sm font-medium">Known Issues or Defects</Label>
+                <Textarea
+                  id="issues"
+                  name="issues"
+                  defaultValue={editingItem?.issues}
+                  placeholder="List any known issues, defects, or problems with the item..."
+                  className="h-20 resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Please be honest about any issues to avoid complaints and strikes
+                </p>
+              </div>
+
+              {/* Image Upload Section */}
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">Product Images (Max 5)</Label>
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
+                  <div className="text-center">
+                    <Upload className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Click to upload or drag and drop images
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('image-upload')?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Images
+                    </Button>
+                  </div>
+                  
+                  {selectedImages.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {selectedImages.map((image, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={URL.createObjectURL(image)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            onClick={() => removeImage(index)}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="price" className="text-sm font-medium">Price (₦) *</Label>
@@ -548,9 +748,22 @@ export const MarketplaceSection = () => {
                 </div>
               </div>
 
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-2">
+                  <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-blue-800">Final Check</p>
+                    <p className="text-blue-700">
+                      Your item will be reviewed by our admin team before going live. 
+                      Ensure all information is accurate to avoid delays.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex space-x-4 pt-4">
                 <Button type="submit" className="shadow-md">
-                  {editingItem ? 'Update Item' : 'List Item'}
+                  {editingItem ? 'Update Item' : 'Submit for Review'}
                 </Button>
                 <Button
                   type="button"
@@ -558,6 +771,8 @@ export const MarketplaceSection = () => {
                   onClick={() => {
                     setShowForm(false);
                     setEditingItem(null);
+                    setSelectedImages([]);
+                    setAcceptedTerms(false);
                   }}
                 >
                   Cancel
