@@ -1,22 +1,22 @@
 
-import { Header } from "@/components/Header";
-import Hero from "@/components/Hero";
-import Services from "@/components/Services";
-import Marketplace from "@/components/Marketplace";
-import Credits from "@/components/Credits";
-import AgentSignup from "@/components/AgentSignup";
-import Footer from "@/components/Footer";
+import { UniversityHeader } from "@/components/university/UniversityHeader";
+import { UniversityHero } from "@/components/university/UniversityHero";
+import { UniversityFeatures } from "@/components/university/UniversityFeatures";
+import { UniversityStats } from "@/components/university/UniversityStats";
+import { UniversityServices } from "@/components/university/UniversityServices";
+import { UniversityTestimonials } from "@/components/university/UniversityTestimonials";
+import { UniversityFooter } from "@/components/university/UniversityFooter";
 
 const Index = () => {
   return (
-    <div className="min-h-screen">
-      <Header />
-      <Hero />
-      <Services />
-      <Marketplace />
-      <Credits />
-      <AgentSignup />
-      <Footer />
+    <div className="min-h-screen bg-background">
+      <UniversityHeader />
+      <UniversityHero />
+      <UniversityStats />
+      <UniversityFeatures />
+      <UniversityServices />
+      <UniversityTestimonials />
+      <UniversityFooter />
     </div>
   );
 };

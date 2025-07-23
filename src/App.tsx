@@ -18,8 +18,11 @@ const App = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground">Loading UNILAG Academic Platform...</p>
+        </div>
       </div>
     );
   }
@@ -31,7 +34,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={user ? <Dashboard /> : <Index />} />
+            <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={user ? <Dashboard /> : <Index />} />
             <Route path="/credits-billing" element={user ? <CreditsAndBilling /> : <Index />} />
             <Route path="/profile-settings" element={user ? <ProfileSettings /> : <Index />} />
