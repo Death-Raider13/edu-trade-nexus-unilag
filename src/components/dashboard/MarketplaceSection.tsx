@@ -490,7 +490,7 @@ export const MarketplaceSection = () => {
                     <Checkbox
                       id="accept-terms"
                       checked={acceptedTerms}
-                      onCheckedChange={setAcceptedTerms}
+                      onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
                     />
                     <label htmlFor="accept-terms" className="text-sm font-medium">
                       I agree to the terms and conditions

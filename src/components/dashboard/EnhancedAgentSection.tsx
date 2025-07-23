@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,7 @@ interface Agent {
   profiles?: {
     full_name: string;
     email: string;
-  };
+  } | null;
 }
 
 export const EnhancedAgentSection = () => {
@@ -53,7 +52,16 @@ export const EnhancedAgentSection = () => {
         .order('cgpa', { ascending: false });
 
       if (error) throw error;
-      setAgents(data || []);
+      
+      // Transform the data to match our interface
+      const transformedAgents: Agent[] = (data || []).map(agent => ({
+        ...agent,
+        profiles: agent.profiles && typeof agent.profiles === 'object' && !('error' in agent.profiles) 
+          ? agent.profiles 
+          : null
+      }));
+      
+      setAgents(transformedAgents);
     } catch (error) {
       console.error('Error fetching agents:', error);
       toast({
