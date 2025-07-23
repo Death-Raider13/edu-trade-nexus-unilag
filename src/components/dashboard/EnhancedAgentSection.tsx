@@ -56,7 +56,7 @@ export const EnhancedAgentSection = () => {
       // Transform the data to match our interface
       const transformedAgents: Agent[] = (data || []).map(agent => ({
         ...agent,
-        profiles: agent.profiles && typeof agent.profiles === 'object' && !('error' in agent.profiles) 
+        profiles: agent.profiles && typeof agent.profiles === 'object' && !Array.isArray(agent.profiles) && !('error' in agent.profiles)
           ? agent.profiles 
           : null
       }));
