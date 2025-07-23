@@ -9,7 +9,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Mail, Lock, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
-export const AuthForm = () => {
+interface AuthFormProps {
+  onSuccess?: () => void;
+}
+
+export const AuthForm = ({ onSuccess }: AuthFormProps) => {
   const { signIn, signUp } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,11 +56,14 @@ export const AuthForm = () => {
           console.error('Error sending welcome email:', emailError);
           alert('Account created! Check your email for the confirmation link.');
         }
+        onSuccess?.();
       }
     } else {
       const { error } = await signIn(formData.email, formData.password);
       if (error) {
         setError(error.message);
+      } else {
+        onSuccess?.();
       }
     }
     setLoading(false);
