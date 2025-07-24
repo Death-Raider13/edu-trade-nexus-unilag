@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 import { 
   BookOpen, 
   Users, 
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 
 export const UniversityServices = () => {
+  const navigate = useNavigate();
   const services = [
     {
       icon: BookOpen,
@@ -131,7 +133,7 @@ export const UniversityServices = () => {
                   
                   <div className="flex items-center justify-between pt-2">
                     <span className="text-sm font-medium text-primary">{service.price}</span>
-                    <Button size="sm" className="text-xs">
+                    <Button size="sm" className="text-xs" onClick={() => navigate('/services')}>
                       Book Session
                       <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
@@ -143,7 +145,7 @@ export const UniversityServices = () => {
         </div>
         
         <div className="text-center mt-12">
-          <Button size="lg" variant="outline" className="border-primary/20 hover:bg-primary/5">
+          <Button size="lg" variant="outline" className="border-primary/20 hover:bg-primary/5" onClick={() => navigate('/services')}>
             View All Services
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>

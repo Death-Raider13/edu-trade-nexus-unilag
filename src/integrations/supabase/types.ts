@@ -115,6 +115,7 @@ export type Database = {
           category: string
           commission: number
           condition: string | null
+          contact_phone: string | null
           created_at: string
           description: string | null
           id: string
@@ -125,11 +126,13 @@ export type Database = {
           status: string | null
           title: string
           updated_at: string
+          views: number | null
         }
         Insert: {
           category: string
           commission?: number
           condition?: string | null
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -140,11 +143,13 @@ export type Database = {
           status?: string | null
           title: string
           updated_at?: string
+          views?: number | null
         }
         Update: {
           category?: string
           commission?: number
           condition?: string | null
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -155,6 +160,7 @@ export type Database = {
           status?: string | null
           title?: string
           updated_at?: string
+          views?: number | null
         }
         Relationships: []
       }
@@ -198,6 +204,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          title: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       orders: {
         Row: {
@@ -249,29 +288,41 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
+          department: string | null
           email: string
           full_name: string | null
           id: string
+          level: string | null
           phone: string | null
+          student_id: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          department?: string | null
           email: string
           full_name?: string | null
           id: string
+          level?: string | null
           phone?: string | null
+          student_id?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          department?: string | null
           email?: string
           full_name?: string | null
           id?: string
+          level?: string | null
           phone?: string | null
+          student_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -318,36 +369,42 @@ export type Database = {
         Row: {
           agent_id: string | null
           client_id: string | null
+          completion_notes: string | null
           created_at: string
           credits_amount: number
           deadline: string | null
           id: string
           requirements: string | null
           service_id: string | null
+          session_notes: string | null
           status: string | null
           updated_at: string
         }
         Insert: {
           agent_id?: string | null
           client_id?: string | null
+          completion_notes?: string | null
           created_at?: string
           credits_amount: number
           deadline?: string | null
           id?: string
           requirements?: string | null
           service_id?: string | null
+          session_notes?: string | null
           status?: string | null
           updated_at?: string
         }
         Update: {
           agent_id?: string | null
           client_id?: string | null
+          completion_notes?: string | null
           created_at?: string
           credits_amount?: number
           deadline?: string | null
           id?: string
           requirements?: string | null
           service_id?: string | null
+          session_notes?: string | null
           status?: string | null
           updated_at?: string
         }

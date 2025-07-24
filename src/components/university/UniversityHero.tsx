@@ -65,6 +65,7 @@ export const UniversityHero = () => {
                 variant="outline" 
                 size="lg" 
                 className="text-lg border-primary/20 hover:bg-primary/5"
+                onClick={() => navigate('/services')}
               >
                 Explore Services
               </Button>
